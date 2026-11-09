@@ -35,5 +35,20 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  backup:
+    image: mongo:8
+    entrypoint: ["/bin/sh", "/scripts/backup.sh"]
+    environment:
+      MONGO_URI: mongodb://mongo:27017/taskflow
+      BACKUP_INTERVAL_SECONDS: "86400"
+      BACKUP_RETENTION_DAYS: "7"
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/scripts/backup.sh:ro
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   mongo-data:
