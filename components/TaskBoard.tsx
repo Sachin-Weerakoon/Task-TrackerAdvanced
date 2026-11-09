@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Brand } from "./Brand";
+import { Icon } from "./Icon";
 import { TaskCard } from "./TaskCard";
 import { DeleteTaskDialog } from "./DeleteTaskDialog";
 import { TaskForm, type TaskInput } from "./TaskForm";
@@ -16,6 +17,7 @@ export function TaskBoard({ user }: { user: PublicUser }) {
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [loggingOut, setLoggingOut] = useState(false);
   const [editing, setEditing] = useState<TaskData | "new" | null>(null);
+  const [initialStatus, setInitialStatus] = useState<TaskData["status"]>("todo");
   const [query, setQuery] = useState("");
   const [deleting, setDeleting] = useState<TaskData | null>(null);
   const load = useCallback(async () => {
@@ -57,17 +59,104 @@ export function TaskBoard({ user }: { user: PublicUser }) {
   }
   const completed = tasks.filter(t => t.status === "done").length;
   const filtered = tasks.filter(t => `${t.title} ${t.description}`.toLowerCase().includes(query.toLowerCase()));
-  return <div className="workspace"><aside className="sidebar"><Brand /><p className="nav-caption">WORKSPACE</p><div className="nav-active"><span aria-hidden="true">▦</span> My board <span className="nav-count">{tasks.length}</span></div><div className="sidebar-tip"><span aria-hidden="true">✦</span><h3>Small steps.<br />Real progress.</h3><p>Make space for what matters. Your next move starts here.</p></div><div className="sidebar-profile"><span className="avatar">{user.name.slice(0, 1).toUpperCase()}</span><div><strong>{user.name}</strong><small>Personal workspace</small></div></div></aside>
-    <div className="workspace-main"><header className="topbar"><span>Workspace <span className="slash">/</span> <strong>My board</strong></span><button className="secondary logout" onClick={logout} disabled={loggingOut}>{loggingOut ? "Logging out…" : "Log out ↗"}</button></header>
-    <main className="board-content"><div className="board-heading"><div><p className="eyebrow">A LITTLE FOCUS GOES A LONG WAY</p><h1>My task board<span className="brand-dot">.</span></h1><p className="muted">Hi {user.name.split(" ")[0]}, let’s turn your plans into progress.</p></div><button className="primary new-task" disabled={loading} onClick={() => setEditing("new")}>+ <span>New task</span></button></div>
-    <section className="stats" aria-label="Task overview"><div><span className="stat-icon total">▦</span><div><small>Total tasks</small><strong>{tasks.length}<span>on your board</span></strong></div></div><div><span className="stat-icon progress">◷</span><div><small>In progress</small><strong>{tasks.filter(t => t.status === "in_progress").length}<span>moving forward</span></strong></div></div><div><span className="stat-icon complete">✓</span><div><small>Completed</small><strong>{completed}<span>nice work!</span></strong></div></div></section>
-    <div className="board-toolbar"><h2><span aria-hidden="true">▦</span> Board view</h2><label className="search"><span className="sr-only">Search tasks</span><input placeholder="Search your tasks…" value={query} onChange={e => setQuery(e.target.value)} type="search" /></label></div>
-    {error && <div className="error" role="alert">{error} <button className="text-button" onClick={load}>Refresh board</button></div>}<p className="sr-only" role="status">{notice}</p>
-    <div className="task-board" aria-busy={loading}>{statuses.map(status => {
-      const column = filtered.filter(t => t.status === status);
-      return <section className={`task-column ${status}`} key={status} aria-label={statusLabels[status]}><div className="column-heading"><h2><span className={`status-dot ${status}`} />{statusLabels[status]} <span className="column-count">{column.length}</span></h2><span aria-hidden="true">···</span></div><div className="column-body">{loading ? <p className="empty" role="status">Loading tasks…</p> : column.length ? column.map(task => <TaskCard key={task.id} task={task} busy={busyIds.has(task.id)} onEdit={() => setEditing(task)} onStatus={s => { void mutate(task, s); }} onDelete={() => setDeleting(task)} />) : <div className="empty"><span aria-hidden="true">{status === "done" ? "✓" : "＋"}</span><p>{query ? "No matching tasks" : status === "done" ? "Good things take a little time" : "A little room for your next idea"}</p><small>{query ? "Try a different search." : status === "done" ? "Finished tasks will feel right at home here." : "Create a task to get things flowing."}</small></div>}</div></section>;
-    })}</div><footer className="board-bottom">YOUR PACE. YOUR PROGRESS.<span>{tasks.length ? Math.round(completed / tasks.length * 100) : 0}% complete</span></footer>
-    </main></div>{editing && <TaskForm task={editing === "new" ? undefined : editing} onSave={save} onClose={() => setEditing(null)} />}
-    {deleting && <DeleteTaskDialog task={deleting} busy={busyIds.has(deleting.id)} onCancel={() => setDeleting(null)} onDelete={() => { void mutate(deleting); }} />}
-  </div>;
+  const completion = tasks.length ? Math.round(completed / tasks.length * 100) : 0;
+  function openNewTask(status: TaskData["status"] = "todo") {
+    setInitialStatus(status);
+    setEditing("new");
+  }
+
+  return (
+    <div className="workspace">
+      <aside className="sidebar">
+        <Brand />
+        <p className="nav-caption">WORKSPACE</p>
+        <div className="nav-active" aria-current="page">
+          <Icon name="board" /> My board <span className="nav-count">{tasks.length}</span>
+        </div>
+        <div className="sidebar-tip">
+          <span className="tip-spark" aria-hidden="true">✦</span>
+          <p className="tip-label">FIND YOUR FLOW</p>
+          <h3>Small steps.<br />Real progress.</h3>
+          <p>Make space for what matters. One task at a time.</p>
+        </div>
+        <div className="sidebar-profile">
+          <span className="avatar">{user.name.slice(0, 1).toUpperCase()}</span>
+          <div><strong>{user.name}</strong><small>Personal workspace</small></div>
+        </div>
+      </aside>
+
+      <div className="workspace-main">
+        <header className="topbar">
+          <span>Workspace <span className="slash">/</span> <strong>My board</strong></span>
+          <button className="secondary logout" onClick={logout} disabled={loggingOut}>
+            {loggingOut ? "Logging out…" : <><Icon name="logout" size={15} /> Log out</>}
+          </button>
+        </header>
+
+        <main className="board-content">
+          <div className="board-heading">
+            <div>
+              <p className="eyebrow"><span className="heading-dot" /> YOUR PERSONAL WORKSPACE</p>
+              <h1>A little focus.<br /><span>A lot of progress.</span></h1>
+              <p className="muted">Hi {user.name.split(" ")[0]}, make room for your next great idea.</p>
+            </div>
+            <button className="primary new-task" disabled={loading} onClick={() => openNewTask()}>
+              <Icon name="plus" size={18} /> New task
+            </button>
+          </div>
+
+          <section className="stats" aria-label="Task overview">
+            <div><span className="stat-icon total"><Icon name="board" size={22} /></span><div><small>Total tasks</small><strong>{loading ? "—" : tasks.length}<span>on your board</span></strong></div></div>
+            <div><span className="stat-icon progress"><Icon name="clock" size={23} /></span><div><small>In progress</small><strong>{loading ? "—" : tasks.filter(task => task.status === "in_progress").length}<span>moving forward</span></strong></div></div>
+            <div><span className="stat-icon complete"><Icon name="check" size={23} /></span><div><small>Completed</small><strong>{loading ? "—" : completed}<span>little wins add up</span></strong></div></div>
+          </section>
+
+          <section className="momentum" aria-label="Board completion">
+            <div><span className="momentum-icon"><Icon name="check" size={16} /></span><p>Your momentum <span>{loading ? "Loading your progress…" : `${completed} of ${tasks.length} tasks complete`}</span></p></div>
+            <div className="momentum-meter"><progress value={completion} max={100} aria-label="Tasks completed" /><strong>{completion}%</strong></div>
+          </section>
+
+          <div className="board-toolbar">
+            <h2><Icon name="board" size={17} /> My task board</h2>
+            <label className="search">
+              <span className="sr-only">Search tasks</span><Icon name="search" size={17} />
+              <input placeholder="Find a task…" value={query} onChange={event => setQuery(event.target.value)} type="search" />
+            </label>
+          </div>
+          {error && <div className="error" role="alert">{error} <button className="text-button" onClick={load}>Refresh board</button></div>}
+          <div className="task-board" aria-busy={loading}>
+            {statuses.map(status => {
+              const column = filtered.filter(task => task.status === status);
+              return (
+                <section className={`task-column ${status}`} key={status} aria-label={statusLabels[status]}>
+                  <div className="column-heading">
+                    <h2><span className={`status-dot ${status}`} />{statusLabels[status]} <span className="column-count">{loading ? "—" : column.length}</span></h2>
+                    <button className="column-add" disabled={loading} onClick={() => openNewTask(status)} aria-label={`Create a task in ${statusLabels[status]}`}><Icon name="plus" size={17} /></button>
+                  </div>
+                  <div className="column-body">
+                    {loading ? (
+                      <div className="board-skeleton" role="status"><span className="sr-only">Loading tasks…</span><div /><div /><div /></div>
+                    ) : column.length ? column.map(task => (
+                      <TaskCard key={task.id} task={task} busy={busyIds.has(task.id)} onEdit={() => setEditing(task)} onStatus={next => { void mutate(task, next); }} onDelete={() => setDeleting(task)} />
+                    )) : (
+                      <div className="empty">
+                        <span><Icon name={status === "done" ? "check" : status === "in_progress" ? "clock" : "board"} size={24} /></span>
+                        <p>{query ? "Nothing here just yet" : status === "done" ? "Make room for little wins" : status === "in_progress" ? "Ready when you are" : "Every great idea starts here"}</p>
+                        <small>{query ? "Try another title or keyword." : status === "done" ? "Your finished tasks will land here." : status === "in_progress" ? "Move a task here to get it going." : "Add your first task and find your flow."}</small>
+                        {status === "todo" && !query && <button className="empty-action" onClick={() => openNewTask()}><Icon name="plus" size={15} /> Add a task</button>}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+          <footer className="board-bottom"><span>Made for a little more flow.</span><span>YOUR PACE. YOUR PROGRESS.</span></footer>
+        </main>
+      </div>
+      {notice && <div className="success-notice" role="status"><span><Icon name="check" size={17} />{notice}</span><button aria-label="Dismiss notification" onClick={() => setNotice("")}>×</button></div>}
+      {editing && <TaskForm task={editing === "new" ? undefined : editing} initialStatus={initialStatus} onSave={save} onClose={() => setEditing(null)} />}
+      {deleting && <DeleteTaskDialog task={deleting} busy={busyIds.has(deleting.id)} onCancel={() => setDeleting(null)} onDelete={() => { void mutate(deleting); }} />}
+    </div>
+  );
 }
