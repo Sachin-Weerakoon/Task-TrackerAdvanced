@@ -74,7 +74,7 @@ All task endpoints require a valid session and an existing user. IDs must be 24 
 - Dashboard session reads sit inside a Suspense boundary, as required by Cache Components. Authorization also runs in every protected API handler.
 - Sessions are signed HS256 JWTs with issuer/audience verification and a 24-hour expiration. Cookies are HttpOnly, SameSite=Lax, path `/`, and Secure in production (serve production over HTTPS). Logout deletes the browser cookie; an already copied JWT remains usable until expiry. Immediate revocation would require a server-side session store.
 - Passwords use bcrypt cost 12. Emails are normalized and protected by a unique database index. Mongoose excludes hashes by default, and APIs explicitly serialize safe response fields.
-- JSON mutations reject mismatched Origin headers. Pino outputs JSON to stdout and logs request IDs/status codes without raw request bodies, JWTs, passwords, connection URIs, or driver errors.
+- JSON mutations reject mismatched Origin headers. Pino outputs JSON to stdout with request IDs/status codes and sanitized error diagnostics, excluding request bodies, JWTs, passwords and connection URIs.
 - System fonts avoid build-time Google Fonts downloads. Turbopack's root is scoped to this repository so an unrelated parent lockfile does not define it.
 - Internet-facing deployment should add shared authentication rate limiting at the application gateway or with an appropriate shared store. This implementation does not provide a distributed login throttle.
 
@@ -90,6 +90,10 @@ node .next/standalone/server.js
 ```
 
 Supply the environment variables at runtime. Production authentication requires HTTPS because its session cookie is Secure. Docker, proxy configuration, CI/CD and backups remain the DevOps team's responsibility; no infrastructure is included here.
+
+The root `instrumentation.ts` validates `MONGODB_URI` (required MongoDB URI) and `JWT_SECRET` (required, at least 32 UTF-8 bytes) when the Node.js server starts, including the generated standalone server. Missing or invalid configuration stops startup with a message naming the variable, without printing its value. Validation does not connect to MongoDB. Runtime secrets are not required during `next build` or type generation; supply them to the deployed server process.
+
+Server errors use Pino's Error serialization for type, message, stack and code, with causes included in the message/stack. The serializer sanitizes connection strings, configured secrets, database credentials and authentication tokens, and omits arbitrary error properties. Client error responses remain generic. Never log request bodies or raw errors under other keys that bypass this serializer.
 
 ## Project Manager review
 

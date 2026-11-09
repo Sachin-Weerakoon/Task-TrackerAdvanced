@@ -1,10 +1,9 @@
 import { SignJWT, jwtVerify } from "jose";
+import { jwtSecret } from "./env";
 export const SESSION_COOKIE = "taskflow_session";
 export const SESSION_SECONDS = 60 * 60 * 24;
 function key() {
-  const secret = process.env.JWT_SECRET;
-  if (!secret || new TextEncoder().encode(secret).length < 32) throw new Error("JWT_SECRET must contain at least 32 bytes");
-  return new TextEncoder().encode(secret);
+  return new TextEncoder().encode(jwtSecret());
 }
 export function assertAuthConfigured() { key(); }
 export async function createToken(userId: string) {

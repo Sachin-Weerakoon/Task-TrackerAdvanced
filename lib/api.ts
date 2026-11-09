@@ -31,8 +31,9 @@ export function endpoint<A extends unknown[]>(handler: (...args: A) => Promise<R
       if (error instanceof ApiError) { status = error.status; message = error.message; }
       else if (error instanceof ZodError) { status = 400; message = "Please check your input"; details = error.issues.map(i => ({ field: i.path.join("."), message: i.message })); }
       else if (typeof error === "object" && error && "code" in error && error.code === 11000) { status = 409; message = "An account with this email already exists"; }
-      // Do not serialize raw errors: driver messages may contain connection credentials.
-      logger[status >= 500 ? "error" : "warn"]({ ...context, requestId, status }, "API request failed");
+      // The logger's Error serializer sanitizes messages/stacks and omits raw
+      // driver properties. Client responses retain their existing safe shape.
+      logger[status >= 500 ? "error" : "warn"]({ ...context, requestId, status, err: error }, "API request failed");
       const response = json({ error: { message, ...(details ? { details } : {}) } }, status);
       response.headers.set("X-Request-Id", requestId);
       return response;
